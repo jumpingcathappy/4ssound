@@ -1,4 +1,5 @@
 const { handleOptions, verifyToken } = require("./_lib");
+const { getClient, ensureSchema } = require("./_db");
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -12,43 +13,44 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { kv } = await import("@vercel/kv");
+    await ensureSchema();
+    const db = getClient();
+
     const { alertId, acknowledgeAll } = req.body || {};
+    const now = Date.now();
 
     if (acknowledgeAll) {
-      const activeIds = (await kv.lrange("active_alert_ids", 0, -1)) || [];
-      for (const id of activeIds) {
-        const alert = await kv.get(`alert:${id}`);
-        if (alert) {
-          alert.status = "acknowledged";
-          alert.acknowledgedAt = Date.now();
-          await kv.set(`alert:${id}`, alert);
-          await kv.lpush("history_alert_ids", id);
-        }
-      }
-      if (activeIds.length > 0) {
-        await kv.del("active_alert_ids");
-      }
-      return res.status(200).json({ success: true, acknowledged: activeIds.length });
+      const result = await db.execute({
+        sql: "UPDATE alerts SET status = 'acknowledged', acknowledged_at = ? WHERE status = 'escalated'",
+        args: [now],
+      });
+      return res.status(200).json({
+        success: true,
+        acknowledged: result.rowsAffected || 0,
+      });
     }
 
     if (!alertId) {
       return res.status(400).json({ error: "Missing alertId" });
     }
 
-    const alert = await kv.get(`alert:${alertId}`);
-    if (!alert) {
+    const existing = await db.execute({
+      sql: "SELECT id FROM alerts WHERE id = ?",
+      args: [alertId],
+    });
+
+    if (existing.rows.length === 0) {
       return res.status(404).json({ error: "Alert not found" });
     }
 
-    alert.status = "acknowledged";
-    alert.acknowledgedAt = Date.now();
-    await kv.set(`alert:${alertId}`, alert);
-    await kv.lrem("active_alert_ids", 0, alertId);
-    await kv.lpush("history_alert_ids", alertId);
+    await db.execute({
+      sql: "UPDATE alerts SET status = 'acknowledged', acknowledged_at = ? WHERE id = ? AND status = 'escalated'",
+      args: [now, alertId],
+    });
 
     return res.status(200).json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error("Acknowledge error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

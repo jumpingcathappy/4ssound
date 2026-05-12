@@ -109,7 +109,7 @@
   function startPolling() {
     if (pollInterval) clearInterval(pollInterval);
     pollAlerts();
-    pollInterval = setInterval(pollAlerts, 3000);
+    pollInterval = setInterval(pollAlerts, 5000);
   }
 
   async function pollAlerts() {

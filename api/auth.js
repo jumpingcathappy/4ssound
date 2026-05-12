@@ -12,8 +12,7 @@ module.exports = async function handler(req, res) {
     if (!password || !verifyDashboardPassword(password)) {
       return res.status(401).json({ error: "Invalid password" });
     }
-    const token = createToken();
-    return res.status(200).json({ token });
+    return res.status(200).json({ token: createToken() });
   } catch {
     return res.status(400).json({ error: "Invalid request" });
   }

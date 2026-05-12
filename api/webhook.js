@@ -1,4 +1,5 @@
 const { handleOptions, verifyApiKey } = require("./_lib");
+const { getClient, ensureSchema } = require("./_db");
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -12,6 +13,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    await ensureSchema();
+    const db = getClient();
+
     const body = req.body || {};
     const { issue_alert_id, message_data, language_template_map } = body;
 
@@ -48,21 +52,18 @@ module.exports = async function handler(req, res) {
         : "Alert";
     }
 
-    // Build alert object
-    const alert = {
-      id: issue_alert_id,
-      status: "escalated",
-      createdAt: Date.now(),
-      acknowledgedAt: null,
-      rawPayload: body,
-      decodedData,
-      alertMessageEN,
-    };
-
-    // Store in Vercel KV
-    const { kv } = await import("@vercel/kv");
-    await kv.set(`alert:${issue_alert_id}`, alert);
-    await kv.lpush("active_alert_ids", issue_alert_id);
+    // Insert alert into database
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO alerts (id, status, created_at, acknowledged_at, raw_payload, decoded_data, alert_message_en)
+            VALUES (?, 'escalated', ?, NULL, ?, ?, ?)`,
+      args: [
+        issue_alert_id,
+        Date.now(),
+        JSON.stringify(body),
+        JSON.stringify(decodedData),
+        alertMessageEN,
+      ],
+    });
 
     // Fire-and-forget: forward to email API
     const emailEndpoint = process.env.EMAIL_FORWARD_URL;
@@ -75,7 +76,8 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(201).json({ success: true, alert_id: issue_alert_id });
-  } catch {
+  } catch (err) {
+    console.error("Webhook error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

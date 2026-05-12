@@ -14,16 +14,16 @@ A browser-based alert monitoring dashboard for call centre employees. Receives c
 | **Language Template Map** | Go-style template map in the payload. Used to render the alert message in various languages (en-US, zh-CN, zh-HK). |
 | **System Link** | A URL linking to the external alert management system. Constructed from a configurable base URL + `issueAlertId`. |
 | **Email Forwarding** | Fire-and-forget proxy of the raw webhook payload to a configured email API endpoint. |
-| **Polling** | Browser polls the API every 3 seconds to check for new/updated alerts. Chosen over WebSocket for simplicity. |
+| **Polling** | Browser polls the API every 5 seconds to check for new/updated alerts. Chosen over WebSocket for simplicity on Vercel's serverless architecture. |
 
 ## Architecture
 
 ```
 Alert System ──POST──▶ Vercel API (/api/webhook)
-                          ├── Store alert in Vercel KV (status: escalated)
+                          ├── Store alert in Turso (SQLite) (status: escalated)
                           └── Forward payload to Email API (fire-and-forget)
 
-Browser tab ◀──GET poll (3s)──▶ Vercel API (/api/alerts) ──▶ 🔊 Looping sound
+Browser tab ◀──GET poll (5s)──▶ Vercel API (/api/alerts) ──▶ 🔊 Looping sound
                           │
 Dashboard UI ──POST──▶ Vercel API (/api/acknowledge) ──▶ Stop sound if none left
 ```
@@ -34,9 +34,11 @@ Dashboard UI ──POST──▶ Vercel API (/api/acknowledge) ──▶ Stop so
 - **Sound loops continuously** until all escalated alerts acknowledged
 - **New alerts don't interrupt** the current sound
 - **History retained 24 hours** after acknowledgment
-- **API key auth** on webhook endpoint
+- **API key auth** on webhook endpoint (`X-API-Key` header)
 - **Simple password auth** on dashboard
 - **Tab title flashes** when alerts are active and tab is in background
+- **Turso (libSQL)** for persistence — generous free tier, SQLite-based, edge-compatible
+- **Polling over WebSocket** — Vercel serverless can't hold persistent connections
 
 ## Environment Variables
 
@@ -46,5 +48,5 @@ Dashboard UI ──POST──▶ Vercel API (/api/acknowledge) ──▶ Stop so
 | `DASHBOARD_PASSWORD` | Password for dashboard login |
 | `SESSION_SECRET` | Secret for session token signing |
 | `EMAIL_FORWARD_URL` | Email API endpoint for payload forwarding |
-| `KV_REST_API_URL` | Vercel KV connection (auto-configured) |
-| `KV_REST_API_TOKEN` | Vercel KV token (auto-configured) |
+| `TURSO_DATABASE_URL` | Turso database connection URL |
+| `TURSO_AUTH_TOKEN` | Turso authentication token |

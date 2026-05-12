@@ -7,6 +7,6 @@
     "deploy": "vercel --prod"
   },
   "dependencies": {
-    "@vercel/kv": "^3.0.0"
+    "@libsql/client": "^0.17.3"
   }
 }

@@ -9,18 +9,26 @@ A browser-based alert monitoring dashboard for call centre employees. Receives c
 npm install
 ```
 
-### 2. Deploy to Vercel
+### 2. Create a Turso database (free)
+1. Sign up at [turso.tech](https://turso.tech)
+2. Create a database:
+   ```bash
+   npm i -g turso
+   turso auth login
+   turso db create 4ssound
+   turso db show 4ssound --url      # copy the URL
+   turso db tokens create 4ssound   # copy the auth token
+   ```
+
+### 3. Deploy to Vercel
 ```bash
 npm i -g vercel
 vercel login
 vercel --prod
 ```
 
-### 3. Enable Vercel KV
-In your Vercel project dashboard, go to **Storage** → **Create Database** → **KV (Redis)**. Link it to your project.
-
 ### 4. Set environment variables
-In Vercel project settings → Environment Variables, set:
+In Vercel project settings → Environment Variables:
 
 | Variable | Description |
 |----------|-------------|
@@ -28,6 +36,8 @@ In Vercel project settings → Environment Variables, set:
 | `DASHBOARD_PASSWORD` | Password for dashboard login |
 | `SESSION_SECRET` | Secret for session token signing |
 | `EMAIL_FORWARD_URL` | Email API endpoint |
+| `TURSO_DATABASE_URL` | Turso database URL |
+| `TURSO_AUTH_TOKEN` | Turso auth token |
 
 ## Usage
 

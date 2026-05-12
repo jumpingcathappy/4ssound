@@ -1,4 +1,5 @@
 const { handleOptions, verifyToken } = require("./_lib");
+const { getClient, ensureSchema } = require("./_db");
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -12,45 +13,48 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { kv } = await import("@vercel/kv");
+    await ensureSchema();
+    const db = getClient();
 
-    const activeIds = (await kv.lrange("active_alert_ids", 0, -1)) || [];
-    const historyIds = (await kv.lrange("history_alert_ids", 0, -1)) || [];
-
-    const activeAlerts = [];
-    for (const id of activeIds) {
-      const alert = await kv.get(`alert:${id}`);
-      if (alert) activeAlerts.push(alert);
-    }
-
+    // Clean up acknowledged alerts older than 24 hours
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    const historyAlerts = [];
-    const expiredIds = [];
-    for (const id of historyIds) {
-      const alert = await kv.get(`alert:${id}`);
-      if (alert) {
-        if (alert.acknowledgedAt && alert.acknowledgedAt < cutoff) {
-          expiredIds.push(id);
-        } else {
-          historyAlerts.push(alert);
-        }
-      }
-    }
+    await db.execute({
+      sql: "DELETE FROM alerts WHERE status = 'acknowledged' AND acknowledged_at < ?",
+      args: [cutoff],
+    });
 
-    for (const id of expiredIds) {
-      await kv.del(`alert:${id}`);
-      await kv.lrem("history_alert_ids", 0, id);
-    }
+    // Fetch active (escalated) alerts
+    const activeResult = await db.execute({
+      sql: "SELECT * FROM alerts WHERE status = 'escalated' ORDER BY created_at DESC",
+      args: [],
+    });
 
-    activeAlerts.sort((a, b) => b.createdAt - a.createdAt);
-    historyAlerts.sort((a, b) => b.createdAt - a.createdAt);
+    // Fetch recent acknowledged alerts
+    const historyResult = await db.execute({
+      sql: "SELECT * FROM alerts WHERE status = 'acknowledged' ORDER BY acknowledged_at DESC",
+      args: [],
+    });
+
+    const formatAlert = (row) => ({
+      id: row.id,
+      status: row.status,
+      createdAt: row.created_at,
+      acknowledgedAt: row.acknowledged_at,
+      rawPayload: JSON.parse(row.raw_payload || "{}"),
+      decodedData: JSON.parse(row.decoded_data || "{}"),
+      alertMessageEN: row.alert_message_en,
+    });
+
+    const activeAlerts = activeResult.rows.map(formatAlert);
+    const historyAlerts = historyResult.rows.map(formatAlert);
 
     return res.status(200).json({
       active: activeAlerts,
       history: historyAlerts,
       activeCount: activeAlerts.length,
     });
-  } catch {
+  } catch (err) {
+    console.error("Alerts error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

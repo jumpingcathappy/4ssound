@@ -46,8 +46,7 @@ function verifyToken(authHeader) {
     const hmac = crypto.createHmac("sha256", SESSION_SECRET);
     hmac.update(payload);
     if (hmac.digest("hex") !== sig) return false;
-    const data = JSON.parse(payload);
-    return data.exp > Date.now();
+    return JSON.parse(payload).exp > Date.now();
   } catch {
     return false;
   }
@@ -57,4 +56,4 @@ function verifyDashboardPassword(password) {
   return password === DASHBOARD_PASSWORD;
 }
 
-module.exports = { handleOptions, verifyApiKey, createToken, verifyToken, verifyDashboardPassword };
+module.exports = { handleOptions, setCORS, verifyApiKey, createToken, verifyToken, verifyDashboardPassword };
