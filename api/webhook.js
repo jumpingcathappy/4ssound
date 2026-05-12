@@ -4,11 +4,14 @@ const { getClient, ensureSchema } = require("./_db");
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
 
-  if (req.method !== "POST") {
+  if (req.method !== "OPTIONS" && req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   if (!verifyApiKey(req)) {
+    const validKey = process.env.WEBHOOK_API_KEY;
+    const receivedKey = req.headers["x-api-key"];
+    console.error("API key mismatch. Key configured:", !!validKey, "Received header:", receivedKey ? "present" : "missing");
     return res.status(401).json({ error: "Invalid API key" });
   }
 
