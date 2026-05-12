@@ -5,9 +5,19 @@ let initPromise = null;
 
 function getClient() {
   if (!client) {
+    const url = process.env.TURSO_DATABASE_URL;
+    const authToken = process.env.TURSO_AUTH_TOKEN;
+
+    if (!url) {
+      throw new Error(
+        "TURSO_DATABASE_URL is not set. " +
+        "Please add it as an environment variable in Vercel and redeploy."
+      );
+    }
+
     client = createClient({
-      url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      url,
+      authToken: authToken || undefined,
     });
   }
   return client;
