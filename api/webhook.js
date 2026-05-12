@@ -1,5 +1,5 @@
 const { handleOptions, verifyApiKey } = require("./_lib");
-const { getClient, ensureSchema } = require("./_db");
+const { getDb, ensureSchema } = require("./_db");
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -9,15 +9,11 @@ module.exports = async function handler(req, res) {
   }
 
   if (!verifyApiKey(req)) {
-    const validKey = process.env.WEBHOOK_API_KEY;
-    const receivedKey = req.headers["x-api-key"];
-    console.error("API key mismatch. Key configured:", !!validKey, "Received header:", receivedKey ? "present" : "missing");
     return res.status(401).json({ error: "Invalid API key" });
   }
 
   try {
-    await ensureSchema();
-    const db = getClient();
+    const db = getDb();
 
     const body = req.body || {};
     const { issue_alert_id, message_data, language_template_map } = body;
@@ -81,6 +77,6 @@ module.exports = async function handler(req, res) {
     return res.status(201).json({ success: true, alert_id: issue_alert_id });
   } catch (err) {
     console.error("Webhook error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 };

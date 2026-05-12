@@ -1,5 +1,5 @@
 const { handleOptions, verifyToken } = require("./_lib");
-const { getClient, ensureSchema } = require("./_db");
+const { getDb } = require("./_db");
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -13,8 +13,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    await ensureSchema();
-    const db = getClient();
+    const db = getDb();
 
     const { alertId, acknowledgeAll } = req.body || {};
     const now = Date.now();
@@ -51,6 +50,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("Acknowledge error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 };

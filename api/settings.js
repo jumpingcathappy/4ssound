@@ -1,5 +1,5 @@
 const { handleOptions, verifyToken } = require("./_lib");
-const { getClient, ensureSchema } = require("./_db");
+const { getDb } = require("./_db");
 
 const DEFAULTS = {
   systemLinkBaseUrl: "https://ssss.emsd.gov.hk/organizations/54125d20-37dc-46cb-a0cb-5abf841d033a/notification-centre",
@@ -15,8 +15,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    await ensureSchema();
-    const db = getClient();
+    const db = getDb();
 
     if (req.method === "GET") {
       const result = await db.execute({
@@ -61,6 +60,6 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (err) {
     console.error("Settings error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 };

@@ -1,5 +1,5 @@
 const { handleOptions, verifyToken } = require("./_lib");
-const { getClient, ensureSchema } = require("./_db");
+const { getDb } = require("./_db");
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -13,8 +13,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    await ensureSchema();
-    const db = getClient();
+    const db = getDb();
 
     // Clean up acknowledged alerts older than 24 hours
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -55,6 +54,6 @@ module.exports = async function handler(req, res) {
     });
   } catch (err) {
     console.error("Alerts error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 };
