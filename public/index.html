@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4S Sound — Alert Monitor</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-screen" class="screen">
+    <div class="login-card">
+      <h1>🔊 4S Sound</h1>
+      <p>Alert Monitoring System</p>
+      <form id="login-form">
+        <input type="password" id="login-password" placeholder="Enter password" required />
+        <button type="submit" class="btn btn-primary">Login</button>
+      </form>
+      <p id="login-error" class="error-text hidden"></p>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard-screen" class="screen hidden">
+    <header>
+      <div class="header-left">
+        <h1>🔊 4S Sound</h1>
+        <span id="active-count" class="badge hidden">0 Active</span>
+      </div>
+      <div class="header-right">
+        <button id="btn-clear-all" class="btn btn-danger hidden">Clear All</button>
+        <button id="btn-settings" class="btn btn-secondary">⚙ Settings</button>
+        <button id="btn-logout" class="btn btn-ghost">Logout</button>
+      </div>
+    </header>
+
+    <!-- Active Alerts -->
+    <section id="active-section">
+      <h2>Active Alerts</h2>
+      <div id="active-alerts" class="alert-list">
+        <p class="empty-state">No active alerts — monitoring…</p>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section id="history-section">
+      <h2>History <span id="history-count" class="count-badge">0</span></h2>
+      <div id="history-alerts" class="alert-list collapsed">
+        <p class="empty-state">No acknowledged alerts.</p>
+      </div>
+      <button id="btn-toggle-history" class="btn btn-ghost">Show History</button>
+    </section>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2>Settings</h2>
+        <div class="form-group">
+          <label for="setting-system-link">System Link Base URL</label>
+          <input type="url" id="setting-system-link" placeholder="https://ssss.emsd.gov.hk/..." />
+        </div>
+        <div class="form-group">
+          <label for="setting-sound">Alarm Sound</label>
+          <select id="setting-sound">
+            <option value="pulse-alarm">Pulse Alarm</option>
+            <option value="continuous">Continuous Tone</option>
+            <option value="siren">Siren</option>
+            <option value="chime">Chime</option>
+            <option value="custom">Custom Upload…</option>
+          </select>
+        </div>
+        <div id="custom-sound-group" class="form-group hidden">
+          <label for="setting-custom-sound">Upload Custom Sound</label>
+          <input type="file" id="setting-custom-sound" accept="audio/*" />
+        </div>
+        <div class="form-group">
+          <button id="btn-test-sound" class="btn btn-secondary">Test Sound</button>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-save-settings" class="btn btn-primary">Save</button>
+          <button id="btn-close-settings" class="btn btn-ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

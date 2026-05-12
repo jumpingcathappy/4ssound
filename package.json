@@ -1,0 +1,12 @@
+{
+  "name": "4ssound",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0"
+  }
+}
