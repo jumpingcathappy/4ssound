@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  // ── Config ──
+  const BASE_PATH = window.BASE_PATH || "";
+
   // ── State ──
   let authToken = localStorage.getItem("4ss_token") || null;
   let settings = {
@@ -48,7 +51,7 @@
     const headers = { "Content-Type": "application/json" };
     if (authToken) headers["Authorization"] = "Bearer " + authToken;
     if (opts.headers) Object.assign(headers, opts.headers);
-    const res = await fetch(path, { ...opts, headers });
+    const res = await fetch(BASE_PATH + path, { ...opts, headers });
     if (res.status === 401) {
       logout();
       throw new Error("Unauthorized");
@@ -145,105 +148,97 @@
       activeCountEl.classList.add("hidden");
       btnClearAll.classList.add("hidden");
     } else {
-      activeCountEl.textContent = activeAlerts.length + " Active";
       activeCountEl.classList.remove("hidden");
+      activeCountEl.textContent = activeAlerts.length + " Active";
       btnClearAll.classList.remove("hidden");
-      activeAlertsEl.innerHTML = activeAlerts.map(renderAlertCard).join("");
+      activeAlertsEl.innerHTML = activeAlerts
+        .map((a) => renderAlertCard(a, false))
+        .join("");
     }
 
     // History
     historyCountEl.textContent = historyAlerts.length;
     if (historyAlerts.length === 0) {
-      historyAlertsEl.innerHTML = '<p class="empty-state">No acknowledged alerts.</p>';
+      historyAlertsEl.innerHTML =
+        '<p class="empty-state">No acknowledged alerts.</p>';
     } else {
       historyAlertsEl.innerHTML = historyAlerts
         .map((a) => renderAlertCard(a, true))
         .join("");
     }
 
-    // Wire ack buttons
-    document.querySelectorAll(".btn-ack-single").forEach((btn) => {
-      btn.addEventListener("click", () => acknowledgeAlert(btn.dataset.id));
+    // Bind acknowledge buttons
+    document.querySelectorAll(".btn-ack").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await api("/api/acknowledge", {
+          method: "POST",
+          body: JSON.stringify({ alertId: btn.dataset.id }),
+        });
+        pollAlerts();
+      });
     });
   }
 
   function renderAlertCard(alert, isHistory) {
-    const d = alert.decodedData || {};
-    const time = formatHKT(alert.decodedData?.input_created_date || alert.createdAt);
-    const msg = alert.alertMessageEN || "Alert";
-    const projectCode = d.project_code || "—";
-    const deviceName = d.device_name || "—";
-    const link = settings.systemLinkBaseUrl
-      ? settings.systemLinkBaseUrl + "?issueAlertId=" + alert.id
-      : "#";
+    const data = alert.decoded_data
+      ? typeof alert.decoded_data === "string"
+        ? JSON.parse(alert.decoded_data)
+        : alert.decoded_data
+      : {};
+    const message = alert.alert_message_en || "Alert";
+    const time = new Date(alert.created_at).toLocaleString();
+    const ackTime = alert.acknowledged_at
+      ? new Date(alert.acknowledged_at).toLocaleString()
+      : null;
+    const systemLink = settings.systemLinkBaseUrl
+      ? `${settings.systemLinkBaseUrl}/${alert.id}`
+      : null;
 
     return `
       <div class="alert-card ${isHistory ? "history" : ""}">
         <div class="alert-header">
-          <div class="alert-message">${escapeHtml(msg)}</div>
+          <span class="alert-message">${esc(message)}</span>
+          <span class="count-badge">${esc(alert.id)}</span>
         </div>
         <dl class="alert-details">
-          <dt>Time (HKT)</dt><dd>${escapeHtml(time)}</dd>
-          <dt>Project</dt><dd>${escapeHtml(projectCode)}</dd>
-          <dt>Device</dt><dd>${escapeHtml(deviceName)}</dd>
+          <dt>Time</dt><dd>${esc(time)}</dd>
+          ${
+            data.device_name
+              ? `<dt>Device</dt><dd>${esc(data.device_name)}</dd>`
+              : ""
+          }
+          ${
+            data.project_code
+              ? `<dt>Project</dt><dd>${esc(data.project_code)}</dd>`
+              : ""
+          }
+          ${
+            systemLink
+              ? `<dt>System</dt><dd><a class="alert-link" href="${esc(systemLink)}" target="_blank">Open in S4S →</a></dd>`
+              : ""
+          }
+          ${
+            isHistory && ackTime
+              ? `<dt>Acked</dt><dd>${esc(ackTime)}</dd>`
+              : ""
+          }
         </dl>
-        <a class="alert-link" href="${escapeHtml(link)}" target="_blank" rel="noopener">
-          View in System →
-        </a>
         ${
           !isHistory
-            ? `<div class="alert-actions" style="margin-top:0.5rem">
-                <button class="btn btn-sm btn-ack btn-ack-single" data-id="${alert.id}">Acknowledge</button>
-              </div>`
+            ? `<div class="alert-actions">
+              <button class="btn btn-ack btn-sm" data-id="${esc(alert.id)}">Acknowledge</button>
+            </div>`
             : ""
         }
-      </div>`;
+      </div>
+    `;
   }
 
-  function formatHKT(dateStr) {
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleString("en-HK", {
-        timeZone: "Asia/Hong_Kong",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      });
-    } catch {
-      return dateStr;
-    }
-  }
-
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = String(str);
-    return div.innerHTML;
-  }
-
-  // ── Acknowledge ──
-  btnClearAll.addEventListener("click", async () => {
-    try {
-      await api("/api/acknowledge", {
-        method: "POST",
-        body: JSON.stringify({ acknowledgeAll: true }),
-      });
-      await pollAlerts();
-    } catch {}
-  });
-
-  async function acknowledgeAlert(id) {
-    try {
-      await api("/api/acknowledge", {
-        method: "POST",
-        body: JSON.stringify({ alertId: id }),
-      });
-      await pollAlerts();
-    } catch {}
+  function esc(s) {
+    if (!s) return "";
+    const d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
   }
 
   // ── Sound ──
@@ -263,74 +258,64 @@
   }
 
   function startSound() {
+    if (isPlaying) return;
     const ctx = getAudioContext();
     if (ctx.state === "suspended") ctx.resume();
-
-    stopSoundSource();
-
-    const soundType = settings.selectedSound;
-
-    if (soundType === "custom" && customSoundBuffer) {
-      playCustomLoop(ctx, customSoundBuffer);
-    } else {
-      playSynthesized(ctx, soundType);
-    }
     isPlaying = true;
-  }
 
-  function stopSound() {
-    stopSoundSource();
-    isPlaying = false;
-  }
-
-  function stopSoundSource() {
-    if (currentSoundSource) {
-      try {
-        currentSoundSource.stop();
-      } catch {}
-      currentSoundSource = null;
+    if (settings.selectedSound === "custom" && customSoundBuffer) {
+      playCustomLoop(ctx, customSoundBuffer);
+      return;
     }
-  }
-
-  function playSynthesized(ctx, type) {
-    // Create a loop of alarm patterns using oscillator + gain scheduling
-    const gainNode = ctx.createGain();
-    gainNode.connect(ctx.destination);
-    gainNode.gain.value = 0;
 
     const osc = ctx.createOscillator();
-    osc.connect(gainNode);
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
-    switch (type) {
+    switch (settings.selectedSound) {
       case "continuous":
-        osc.type = "square";
+        osc.type = "sine";
         osc.frequency.value = 880;
-        scheduleContinuous(gainNode, ctx);
-        break;
-      case "pulse-alarm":
-        osc.type = "square";
-        osc.frequency.value = 1000;
-        schedulePulse(gainNode, ctx);
+        scheduleContinuous(gain, ctx);
         break;
       case "siren":
-        osc.type = "sawtooth";
+        osc.type = "sine";
         osc.frequency.value = 600;
-        scheduleSiren(osc, gainNode, ctx);
+        scheduleSiren(osc, gain, ctx);
         break;
       case "chime":
         osc.type = "sine";
-        osc.frequency.value = 1200;
-        scheduleChime(gainNode, ctx);
+        osc.frequency.value = 1047;
+        scheduleChime(gain, ctx);
         break;
-      default:
+      default: // pulse-alarm
         osc.type = "square";
-        osc.frequency.value = 1000;
-        schedulePulse(gainNode, ctx);
+        osc.frequency.value = 880;
+        schedulePulse(gain, ctx);
+        break;
     }
 
     osc.start();
     currentSoundSource = { stop: () => { try { osc.stop(); } catch {} } };
   }
+
+  function stopSound() {
+    if (currentSoundSource) {
+      try { currentSoundSource.stop(); } catch {}
+      currentSoundSource = null;
+    }
+    isPlaying = false;
+  }
+
+  // Clear all button
+  btnClearAll.addEventListener("click", async () => {
+    await api("/api/acknowledge", {
+      method: "POST",
+      body: JSON.stringify({ acknowledgeAll: true }),
+    });
+    pollAlerts();
+  });
 
   function scheduleContinuous(gain, ctx) {
     const now = ctx.currentTime;

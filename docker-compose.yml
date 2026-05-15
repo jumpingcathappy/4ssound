@@ -1,0 +1,18 @@
+services:
+  ssss-sound:
+    build: .
+    container_name: ssss-sound
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ssss-sound-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - PORT=3000
+      - BASE_PATH=/ssss-escalation
+      - DATABASE_PATH=file:data/ssss-sound.db
+
+volumes:
+  ssss-sound-data:

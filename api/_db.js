@@ -1,7 +1,9 @@
 const { createClient } = require("@libsql/client");
 
-async function ensureSchema(url, authToken) {
-  const db = createClient({ url, authToken });
+const DB_PATH = process.env.DATABASE_PATH || "file:data/ssss-sound.db";
+
+async function ensureSchema() {
+  const db = getDb();
   try {
     await db.execute(`
       CREATE TABLE IF NOT EXISTS alerts (
@@ -23,18 +25,14 @@ async function ensureSchema(url, authToken) {
     await db.execute(`
       CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status)
     `);
+    console.log(`Database ready at ${DB_PATH}`);
   } finally {
     db.close();
   }
 }
 
 function getDb() {
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-  if (!url) {
-    throw new Error("TURSO_DATABASE_URL is not set. Please add it in Vercel environment variables and redeploy.");
-  }
-  return createClient({ url, authToken });
+  return createClient({ url: DB_PATH });
 }
 
 module.exports = { getDb, ensureSchema };
