@@ -2,6 +2,28 @@
 
 A browser-based alert monitoring dashboard for call centre employees. Receives critical SOS alerts via webhook, plays a looping alarm sound until all alerts are acknowledged, and forwards the payload to an email API.
 
+## Environments
+
+| Environment | Domain | Deployment | Server |
+|-------------|--------|------------|--------|
+| **Production** | `https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/` | Docker (Nginx + Node.js container) | `UATESURVEYLBP` |
+| **UAT** | `https://4ssound.vercel.app` | Vercel (Turso DB) | Vercel managed |
+
+### Production endpoints
+
+| Endpoint | URL |
+|----------|-----|
+| Dashboard | `https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/` |
+| Webhook API | `POST https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/api/webhook` |
+| Debug | `https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/api/debug` |
+
+### UAT endpoints
+
+| Endpoint | URL |
+|----------|-----|
+| Dashboard | `https://4ssound.vercel.app` |
+| Webhook API | `POST https://4ssound.vercel.app/api/webhook` |
+
 ## Deployment
 
 ### Option A: Docker (Recommended for Production)
@@ -118,15 +140,11 @@ docker exec esurvey-lb nginx -s reload
 
 Access the dashboard in your browser:
 
-```
-https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/
-```
-
 | Endpoint | URL |
 |----------|-----|
-| Dashboard | `https://<host>/ssss-escalation/` |
-| Webhook | `POST https://<host>/ssss-escalation/api/webhook` |
-| Debug | `https://<host>/ssss-escalation/api/debug` |
+| Dashboard | `https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/` |
+| Webhook | `POST https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/api/webhook` |
+| Debug | `https://esurvey-api-uat.emsd.gov.hk/ssss-escalation/api/debug` |
 
 #### Data persistence
 
