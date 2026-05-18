@@ -22,6 +22,7 @@
   let originalTitle = "4S Sound — Alert Monitor";
   let pollInterval = null;
   let knownActiveIds = new Set();
+  let previousActiveIds = new Set();
 
   // ── DOM refs ──
   const loginScreen = document.getElementById("login-screen");
@@ -118,20 +119,19 @@
   async function pollAlerts() {
     try {
       const data = await api("/api/alerts");
-      const prevActiveIds = new Set(activeAlerts.map((a) => a.id));
+      previousActiveIds = new Set(activeAlerts.map((a) => a.id));
       activeAlerts = data.active || [];
       historyAlerts = data.history || [];
       renderAlerts();
       updateSoundState();
       updateTabFlash();
 
-      // Check for new alerts (ids not in previous set)
+      // Track known active ids
       for (const alert of activeAlerts) {
         if (!knownActiveIds.has(alert.id)) {
           knownActiveIds.add(alert.id);
         }
       }
-      // Clean known ids for acked alerts
       for (const id of knownActiveIds) {
         if (!activeAlerts.find((a) => a.id === id)) {
           knownActiveIds.delete(id);
@@ -152,7 +152,10 @@
       activeCountEl.textContent = activeAlerts.length + " Active";
       btnClearAll.classList.remove("hidden");
       activeAlertsEl.innerHTML = activeAlerts
-        .map((a) => renderAlertCard(a, false))
+        .map((a) => {
+          const isNew = !previousActiveIds.has(a.id);
+          return renderAlertCard(a, false, isNew);
+        })
         .join("");
     }
 
@@ -163,39 +166,48 @@
         '<p class="empty-state">No acknowledged alerts.</p>';
     } else {
       historyAlertsEl.innerHTML = historyAlerts
-        .map((a) => renderAlertCard(a, true))
+        .map((a) => renderAlertCard(a, true, false))
         .join("");
     }
 
-    // Bind acknowledge buttons
+    // Bind acknowledge buttons — use click with optimistic UI update
     document.querySelectorAll(".btn-ack").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await api("/api/acknowledge", {
-          method: "POST",
-          body: JSON.stringify({ alertId: btn.dataset.id }),
-        });
-        pollAlerts();
-      });
+      btn.addEventListener("click", handleAcknowledge);
     });
   }
 
-  function renderAlertCard(alert, isHistory) {
-    const data = alert.decoded_data
-      ? typeof alert.decoded_data === "string"
-        ? JSON.parse(alert.decoded_data)
-        : alert.decoded_data
+  async function handleAcknowledge(e) {
+    const btn = e.currentTarget;
+    const alertId = btn.dataset.id;
+    // Optimistic: immediately disable button and move alert visually
+    btn.disabled = true;
+    btn.textContent = "Ack…";
+    try {
+      await api("/api/acknowledge", {
+        method: "POST",
+        body: JSON.stringify({ alertId }),
+      });
+    } catch {}
+    pollAlerts();
+  }
+
+  function renderAlertCard(alert, isHistory, isNew) {
+    const data = alert.decodedData
+      ? typeof alert.decodedData === "string"
+        ? JSON.parse(alert.decodedData)
+        : alert.decodedData
       : {};
-    const message = alert.alert_message_en || "Alert";
-    const time = new Date(alert.created_at).toLocaleString();
-    const ackTime = alert.acknowledged_at
-      ? new Date(alert.acknowledged_at).toLocaleString()
+    const message = alert.alertMessageEN || "Alert";
+    const time = new Date(alert.createdAt).toLocaleString();
+    const ackTime = alert.acknowledgedAt
+      ? new Date(alert.acknowledgedAt).toLocaleString()
       : null;
     const systemLink = settings.systemLinkBaseUrl
-      ? `${settings.systemLinkBaseUrl}/${alert.id}`
+      ? `${settings.systemLinkBaseUrl}?issueAlertId=${encodeURIComponent(alert.id)}`
       : null;
 
     return `
-      <div class="alert-card ${isHistory ? "history" : ""}">
+      <div class="alert-card ${isHistory ? "history" : ""} ${isNew ? "flash-new" : ""}">
         <div class="alert-header">
           <span class="alert-message">${esc(message)}</span>
           <span class="count-badge">${esc(alert.id)}</span>
