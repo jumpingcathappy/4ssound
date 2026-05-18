@@ -226,7 +226,7 @@
           }
           ${
             systemLink
-              ? `<dt>System</dt><dd><a class="alert-link" href="${esc(systemLink)}" target="_blank">Open in S4S →</a></dd>`
+              ? `<dt>System</dt><dd><a class="alert-link" href="${esc(systemLink)}" target="_blank">Open in EMSD-SSSS →</a></dd>`
               : ""
           }
           ${
